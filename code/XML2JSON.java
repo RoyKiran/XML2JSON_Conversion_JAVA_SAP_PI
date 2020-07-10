@@ -23,29 +23,33 @@ import com.sap.aii.mapping.api.TransformationOutput;
 
 public class XML2JSON extends AbstractTransformation {
 
-	List<String> array_nodes = new ArrayList<String>();
-	List<String> hide_keys = new ArrayList<String>();
-	List<String> delete_entry = new ArrayList<String>();
-	int last_level_to_keep = 0;
+	private List<String> array_nodes = new ArrayList<String>();
+	private List<String> hide_keys = new ArrayList<String>();
+	private List<String> delete_entry = new ArrayList<String>();
+	private int last_level_to_keep = 0;
+	private boolean num_to_string = false;
 
 	public XML2JSON() {
 
 	}
 
 	public XML2JSON(List<String> array_nodes, List<String> hide_keys,
-			List<String> delete_entry, int last_level_to_keep) {
+			List<String> delete_entry, int last_level_to_keep, 
+			boolean num_to_string) {
 		/*
 		 * Declare constructor to define the class-level variables Input: 
 		 * 1) array_nodes -> List to store Keys that should be JSONArray 
 		 * 2) hide_keys -> List to store Keys that should be Hidden 
 		 * 3) delete_entry -> List to store Keys, whose records are to be deleted from the structure 
 		 * 4) last_level_to_keep -> integer to store maximum level of JSON Structure to be retained
+		 * 5) num_to_string -> boolean variable to set if numbers are to be converted in string format		 
 		 */
 
 		this.array_nodes = array_nodes;
 		this.hide_keys = hide_keys;
 		this.delete_entry = delete_entry;
 		this.last_level_to_keep = last_level_to_keep;
+		this.num_to_string = num_to_string;
 	}
 
 	public static void main(String[] args) {
@@ -81,11 +85,12 @@ public class XML2JSON extends AbstractTransformation {
 			String[] hide_keys = { "" };
 			String[] delete_entry = { "xmlns:ns2" };
 			int last_level_to_keep = 3;
+			boolean num_to_string = true;
 			
 			// Instance of XML2JSON created and parameters passed to contructor
 			XML2JSON obj = new XML2JSON(Arrays.asList(array_nodes), Arrays
 					.asList(hide_keys), Arrays.asList(delete_entry),
-					last_level_to_keep);
+					last_level_to_keep, num_to_string);
 
 			// Instance of XML2JSON created and parameters passed to contructor
 			obj.readStreamContent(input, output);
@@ -131,6 +136,8 @@ public class XML2JSON extends AbstractTransformation {
 				.getString("DELETE_ENTRY");
 		int last_level_to_keep = transformationInput.getInputParameters()
 				.getInt("LAST_LEVEL_TO_KEEP");
+		boolean num_to_string = Boolean.parseBoolean(transformationInput.getInputParameters()
+		.getString("NUM_TO_STRING"));
 
 		// Display parameter value on trace
 		getTrace().addInfo("Input Parameters listed below: \n");
@@ -138,7 +145,7 @@ public class XML2JSON extends AbstractTransformation {
 		getTrace().addInfo("HIDE_KEYS: " + hide_keys);
 		getTrace().addInfo("DELETE_ENTRY: " + delete_entry);
 		getTrace().addInfo("LAST_LEVEL_TO_KEEP: " + last_level_to_keep);
-
+		getTrace().addInfo("NUM_TO_STRING: " + num_to_string);
 		
 		// Output Payload Stream is obtained to send the data
 		OutputStream outputStream = transformationOutput.getOutputPayload()
@@ -150,10 +157,9 @@ public class XML2JSON extends AbstractTransformation {
 		// Instance of XML2JSON created and parameters passed to contructor
 		XML2JSON obj = new XML2JSON(Arrays.asList(array_nodes.split(",")),
 				Arrays.asList(hide_keys.split(",")), Arrays.asList(delete_entry
-						.split(",")), last_level_to_keep);
+						.split(",")), last_level_to_keep, num_to_string);
 
-		// Call readStreamContent() to Handle the input and output stream
-		// content
+		// Call readStreamContent() to Handle the input and output stream content
 		try {
 			obj.readStreamContent(inputStream, outputStream);
 		} catch (UnsupportedEncodingException e) {
@@ -184,17 +190,14 @@ public class XML2JSON extends AbstractTransformation {
 
 			// A debug message is added to display the input XML
 			if (getTrace() != null) {
-				getTrace()
-						.addDebugMessage(
-								"Input XML:\n" + new String(buf, "utf-8")
-										+ "\n ------");
+				getTrace().addDebugMessage(
+					"Input XML:\n" + new String(buf, "utf-8") + "\n ------");
 			} else { // This section is added for normal JAVA Program run
 				System.out.println(new String(buf, "utf-8"));
 			}
 
 			// Convert XML to JSON
-			JSONObject xmlJsonObj = XML.toJSONObject(new String(buf, "utf-8"));
-			// System.out.println("****" + xmlJsonObj.toString() + "***");
+			JSONObject xmlJsonObj = XML.toJSONObject(new String(buf, "utf-8"));			
 
 			// Call handleJSONData() to parse the JSON Structure to Delete a
 			// record or convert it to an array
@@ -211,22 +214,19 @@ public class XML2JSON extends AbstractTransformation {
 
 			// Hide Key names if required
 			for (String text : hide_keys) {
-				jsonPrettyPrintString = jsonPrettyPrintString.replaceAll("\""
-						+ text + "\":", "");
+				jsonPrettyPrintString = jsonPrettyPrintString.replaceAll("\""+ text + "\":", "");
 			}  
 
 			// Print the Final JSON structure in Trace
 			if (getTrace() != null) {
-				getTrace().addDebugMessage(
-						"Output JSON:\n" + jsonPrettyPrintString + "\n ------");
+				getTrace().addDebugMessage("Output JSON:\n" + jsonPrettyPrintString + "\n ------");
 			} else {
 				System.out.println(jsonPrettyPrintString);
 			}
 
 		
 			// Convert the Output JSON Structure to bytes
-			if (jsonPrettyPrintString == null
-					|| jsonPrettyPrintString.length() < 1) {
+			if (jsonPrettyPrintString == null || jsonPrettyPrintString.length() < 1) {
 				byte[] bytes = "{}".toString().getBytes("UTF-8");
 
 				// Write output bytes to the output stream
@@ -234,8 +234,7 @@ public class XML2JSON extends AbstractTransformation {
 			}
 
 			else {
-				byte[] bytes = jsonPrettyPrintString.toString().getBytes(
-						"UTF-8");
+				byte[] bytes = jsonPrettyPrintString.toString().getBytes("UTF-8");
 
 				// Write output bytes to the output stream
 				outputStream.write(bytes);
@@ -244,10 +243,7 @@ public class XML2JSON extends AbstractTransformation {
 		} catch (Exception e) {
 			// Handle all exceptions
 			if (getTrace() != null) {
-				getTrace()
-						.addDebugMessage(
-								"Exception while writing OutputPayload: IOException",
-								e);
+				getTrace().addDebugMessage("Exception while writing OutputPayload: IOException", e);
 				outputStream.write("{}".toString().getBytes("UTF-8"));
 				throw new StreamTransformationException(e.toString());
 				
@@ -258,15 +254,14 @@ public class XML2JSON extends AbstractTransformation {
 
 	public JSONObject handleJSONData(JSONObject jsonObj) {
 		/*
-		 * Parse the JSON Structure to Delete a record or convert it to an array
+		 * Parse the JSON Structure to Delete a record or convert it to an array. 
+		 * Also convert the number to string format if required.
 		 * Input: JSONObject -> Json Sub structure to be updated Output:
 		 * JSONObject -> Updated Json Sub structure with deleted records and
 		 * arrays.
 		 */
 
 		try {
-			// System.out.println("*" + jsonObj.keySet());
-
 			// Create an array of keyset to loop further
 			String arr[] = new String[jsonObj.keySet().size()];
 			int k = 0;
@@ -276,14 +271,9 @@ public class XML2JSON extends AbstractTransformation {
 			// Loop through all the keys in a JSONObject
 			for (String key : arr) {
 
-				// If there are records to be deleted, remove them and move to
-				// next key
-				if (delete_entry.contains(key)) {
-					// jsonObj.put(key,"");
+				// If there are records to be deleted, remove them and move to next key
+				if (delete_entry.contains(key)) {					
 					jsonObj.remove(key);
-
-					// System.out.println(">" + arr.toString());
-					// System.out.println(">" + jsonObj.toString());
 					continue;
 				}
 
@@ -292,8 +282,7 @@ public class XML2JSON extends AbstractTransformation {
 					jsonObj = forceToJSONArray(jsonObj, key);
 				}
 
-				// If the sub node is a JSONArray or JSONObject, step inside the
-				// Object
+				// If the sub node is a JSONArray or JSONObject, step inside the Object
 				if (jsonObj.get(key) instanceof JSONArray) {
 					JSONArray sjao = jsonObj.getJSONArray(key);
 					for (int i = 0; i < sjao.length(); i++) {
@@ -301,16 +290,20 @@ public class XML2JSON extends AbstractTransformation {
 					}
 					jsonObj.put(key, sjao);
 				} else if (jsonObj.get(key) instanceof JSONObject) {
-					jsonObj
-							.put(key,
-									handleJSONData(jsonObj.getJSONObject(key)));
+					jsonObj.put(key,handleJSONData(jsonObj.getJSONObject(key)));
+				} else {
+					// Convert number to String if num_to_string is set
+					if (num_to_string){
+						Object val = jsonObj.get(key);
+						if(val instanceof Integer || val instanceof Float || val instanceof Double 
+						   || val instanceof Long || val instanceof Short)
+							jsonObj.put(key,jsonObj.get(key).toString());
 				}
 			}
 		} catch (Exception e) {
 			// Handle all exceptions
 			if (getTrace() != null) {
-				getTrace().addDebugMessage(
-						"Exception while Updating Payload: ", e);
+				getTrace().addDebugMessage("Exception while Updating Payload: ", e);
 			} else
 				e.printStackTrace();
 		}
@@ -331,8 +324,7 @@ public class XML2JSON extends AbstractTransformation {
 		// can also return null value.
 		Object obj = jsonObj.opt(key);
 
-		// If the obj doesn't exist inside my the JsonObject structure, create
-		// it empty
+		// If the obj doesn't exist inside my the JsonObject structure, create it empty
 		if (obj == null) {
 			jsonObj.put(key, new JSONArray());
 		}
@@ -342,9 +334,9 @@ public class XML2JSON extends AbstractTransformation {
 			jsonArray.put((JSONObject) obj);
 			jsonObj.put(key, jsonArray);
 		}
-		// if exist but is a primitive entry, force it to a "primitive"
-		// JSONArray
-		else if (obj instanceof String || obj instanceof Integer) {
+		// if exist but is a primitive entry, force it to a "primitive" JSONArray
+		else if (obj instanceof String || obj instanceof Integer || obj instanceof Float 
+			 || obj instanceof Double || obj instanceof Long || obj instanceof Boolean ) {
 			JSONArray jsonArray = new JSONArray();
 			jsonArray.put(obj);
 			jsonObj.put(key, jsonArray);
@@ -363,35 +355,27 @@ public class XML2JSON extends AbstractTransformation {
 
 		// Read the first key in the JSONObject Structure
 		String node = new ArrayList<String>(jsonObj.keySet()).get(0);
-		// System.out.println("*" + node + "--"+
-		// jo.get(node).getClass().getName());
 
-		// Check if last level as per input is reached and return the output
-		// string
+		// Check if last level as per input is reached and return the output string
 		if (current_level == last_level_to_keep - 1) {
-			// If instance is JSONObject, remove the key and return the output
-			// string
+			// If instance is JSONObject, remove the key and return the output string
 			if (jsonObj.get(node) instanceof JSONObject) {
 				return jsonObj.getJSONObject(node).toString(2);
 			}
-			// If instance is JSONArray, remove the key and return the output
-			// string
+			// If instance is JSONArray, remove the key and return the output string
 			else if (jsonObj.get(node) instanceof JSONArray) {
 				return jsonObj.getJSONArray(node).toString(2);
 			}
 
-			// If both above cases fail, invalid level was provided and return
-			// empty string
+			// If both above cases fail, invalid level was provided and return empty string
 			return "{}";
 		}
 
-		// If its not the last level step in deeper one level and pass Object
-		// and incremented level index
+		// If its not the last level step in deeper one level and pass Object and incremented level index
 		else if (jsonObj.get(node) instanceof JSONObject) {
 			return deleteLevel(jsonObj.getJSONObject(node), ++current_level);
 		} else if (jsonObj.get(node) instanceof JSONArray) {
-			return deleteLevel(jsonObj.getJSONArray(node).getJSONObject(0),
-					++current_level);
+			return deleteLevel(jsonObj.getJSONArray(node).getJSONObject(0), ++current_level);
 		}
 
 		// If the object is no more an array or json object, invalid level was
